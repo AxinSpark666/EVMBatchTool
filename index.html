@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web3 Multi-Transfer Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.5/ethers.umd.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#10b981',
+                        danger: '#ef4444',
+                        darkbg: '#0f172a',
+                        cardbg: '#1e293b'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; 
+        }
+    </style>
+</head>
+<body class="bg-darkbg text-gray-200 font-sans min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-cardbg border-b border-gray-700 p-4 shadow-lg">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-primary flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Web3 Multi-Transfer Pro
+            </h1>
+            <div class="text-sm text-gray-400">
+                Secure & Local Execution
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto w-full p-4 space-y-6">
+
+        <!-- Safety Disclaimer -->
+        <div class="bg-red-900/20 border border-red-500/50 rounded-lg p-4 flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+                <h3 class="font-bold text-red-400">安全免责声明</h3>
+                <p class="text-sm text-gray-300 mt-1">
+                    本工具是一个纯前端应用，所有私钥仅在您的浏览器本地处理，绝不会发送到任何外部服务器。
+                    代码完全开源透明。使用前请务必核对接收地址，因私钥泄露或操作失误导致的资产损失，开发者概不负责。
+                    建议在使用大额资产前，先用小额资金进行测试。
+                </p>
+            </div>
+        </div>
+
+        <!-- Configuration -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-cardbg p-4 rounded-lg border border-gray-700">
+                <label class="block text-sm font-medium text-gray-400 mb-1">选择网络 (Network)</label>
+                <select id="networkSelect" onchange="onNetworkChange()" 
+                    class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-primary mb-3">
+                    <option value="eth">Ethereum (ETH)</option>
+                    <option value="arb">Arbitrum (ARB)</option>
+                    <option value="base">Base (BASE)</option>
+                    <option value="bsc">BNB Chain (BSC)</option>
+                    <option value="op">Optimism (OP)</option>
+                    <option value="pol">Polygon (POL)</option>
+                    <option value="custom">Custom RPC (自定义)</option>
+                </select>
+
+                <label class="block text-sm font-medium text-gray-400 mb-1 flex justify-between">
+                    <span>RPC 节点地址</span>
+                    <a href="https://mct.xyz/nodespeed?chainId=1" target="_blank" class="text-xs text-primary hover:underline flex items-center gap-1">
+                        找最快节点
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                    </a>
+                </label>
+                <input type="text" id="rpcUrl" value="https://geth.mytokenpocket.vip" oninput="restartRpcMonitor()"
+                    class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-primary placeholder-gray-500"
+                    placeholder="例如: https://mainnet.infura.io/v3/...">
+                
+                <!-- RPC Status Monitor -->
+                <div class="mt-2 flex items-center gap-4 text-xs bg-gray-800/50 p-2 rounded border border-gray-700/50">
+                    <div id="rpcStatus" class="flex items-center gap-1.5 text-gray-500 font-medium">
+                        <span class="w-2 h-2 rounded-full bg-gray-500"></span>
+                        <span>检测中...</span>
+                    </div>
+                    <div id="rpcLatency" class="hidden font-mono"></div>
+                    <div id="rpcHeight" class="hidden font-mono text-gray-400"></div>
+                </div>
+            </div>
+            <div class="bg-cardbg p-4 rounded-lg border border-gray-700">
+                <label class="block text-sm font-medium text-gray-400 mb-1">代币合约地址 (可选)</label>
+                <input type="text" id="tokenAddress" 
+                    class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-primary placeholder-gray-500"
+                    placeholder="留空则发送原生代币 (ETH/BNB/MATIC...)">
+            </div>
+        </div>
+
+        <!-- Main Interface -->
+        <div class="bg-cardbg rounded-lg border border-gray-700 shadow-xl overflow-hidden">
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-700">
+                <button onclick="switchTab('mn')" id="tab-mn" class="flex-1 py-4 text-center font-medium hover:bg-gray-700 transition-colors border-b-2 border-primary text-primary">
+                    功能一：多对多 (M:N)
+                </button>
+                <button onclick="switchTab('m1')" id="tab-m1" class="flex-1 py-4 text-center font-medium hover:bg-gray-700 transition-colors text-gray-400 border-b-2 border-transparent">
+                    功能二：归集 (M:1)
+                </button>
+                <button onclick="switchTab('1n')" id="tab-1n" class="flex-1 py-4 text-center font-medium hover:bg-gray-700 transition-colors text-gray-400 border-b-2 border-transparent">
+                    功能三：分发 (1:N)
+                </button>
+            </div>
+
+            <div class="p-6">
+                <!-- Mode M:N -->
+                <div id="panel-mn" class="space-y-4">
+                    <div class="bg-blue-900/20 p-3 rounded border border-blue-500/30 text-sm text-blue-300 mb-4">
+                        <span class="font-bold">模式说明：</span> 第1个私钥转给第1个地址，第2个转给第2个... 行数必须对应。
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-2">批量私钥 (每行一个)</label>
+                            <textarea id="mn-keys" rows="10" class="w-full bg-gray-800 border border-gray-600 rounded p-3 font-mono text-xs focus:outline-none focus:border-primary" placeholder="0x..."></textarea>
+                            <button onclick="verifyKeys('mn-keys')" class="mt-2 w-full py-2 bg-gray-700 hover:bg-gray-600 text-primary text-sm rounded transition-colors flex justify-center items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                确认导入并查看余额
+                            </button>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-2">批量接收地址 (每行一个)</label>
+                            <textarea id="mn-addrs" rows="10" class="w-full bg-gray-800 border border-gray-600 rounded p-3 font-mono text-xs focus:outline-none focus:border-primary" placeholder="0x..."></textarea>
+                            <button onclick="verifyMnMapping()" class="mt-2 w-full py-2 bg-gray-700 hover:bg-gray-600 text-secondary text-sm rounded transition-colors flex justify-center items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                确认导入接收地址
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mode M:1 -->
+                <div id="panel-m1" class="space-y-4 hidden">
+                    <div class="bg-blue-900/20 p-3 rounded border border-blue-500/30 text-sm text-blue-300 mb-4">
+                        <span class="font-bold">模式说明：</span> 所有输入的私钥账户将资金转入同一个接收地址。
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-2">批量私钥 (每行一个)</label>
+                            <textarea id="m1-keys" rows="10" class="w-full bg-gray-800 border border-gray-600 rounded p-3 font-mono text-xs focus:outline-none focus:border-primary" placeholder="0x..."></textarea>
+                            <button onclick="verifyKeys('m1-keys')" class="mt-2 w-full py-2 bg-gray-700 hover:bg-gray-600 text-primary text-sm rounded transition-colors flex justify-center items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                确认导入并查看余额
+                            </button>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-400 mb-2">接收地址 (单个)</label>
+                                <input type="text" id="m1-addr" class="w-full bg-gray-800 border border-gray-600 rounded p-3 font-mono text-sm focus:outline-none focus:border-primary" placeholder="0x...">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mode 1:N -->
+                <div id="panel-1n" class="space-y-4 hidden">
+                    <div class="bg-blue-900/20 p-3 rounded border border-blue-500/30 text-sm text-blue-300 mb-4">
+                        <span class="font-bold">模式说明：</span> 一个主账户向多个地址分发资金。
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-2">发送方私钥 (单个)</label>
+                            <input type="password" id="1n-key" class="w-full bg-gray-800 border border-gray-600 rounded p-3 font-mono text-sm focus:outline-none focus:border-primary" placeholder="0x...">
+                            <div class="mt-2 text-xs text-gray-500 flex justify-between items-center">
+                                <span>* 为了安全，输入时隐藏</span>
+                                <button onclick="verifyKeys('1n-key')" class="text-primary hover:underline text-xs flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    查看余额
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-2">批量接收地址 (每行一个)</label>
+                            <textarea id="1n-addrs" rows="10" class="w-full bg-gray-800 border border-gray-600 rounded p-3 font-mono text-xs focus:outline-none focus:border-primary" placeholder="0x..."></textarea>
+                             <button onclick="verifyKeys('1n-key')" class="mt-2 w-full py-2 bg-gray-700 hover:bg-gray-600 text-secondary text-sm rounded transition-colors flex justify-center items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                确认导入接收地址
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Common Settings -->
+                <div class="mt-6 pt-6 border-t border-gray-700">
+                    <!-- Account Overview Panel (Fixed View) -->
+                    <div id="account-overview-panel" class="mb-6 hidden">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                </svg>
+                                账户概览 & 余额 (Account Overview)
+                            </h3>
+                            <button onclick="clearAccountOverview()" class="text-xs text-gray-500 hover:text-red-400">清空列表</button>
+                        </div>
+                        <div class="bg-gray-800/50 rounded border border-gray-700 overflow-hidden">
+                            <div class="max-h-60 overflow-y-auto custom-scrollbar">
+                                <table class="w-full text-left text-xs text-gray-400">
+                                    <thead class="bg-gray-800 text-gray-300 uppercase font-medium sticky top-0 z-10">
+                                        <tr>
+                                            <th class="px-4 py-2">#</th>
+                                            <th class="px-4 py-2">钱包地址 (Sender)</th>
+                                            <th class="px-4 py-2">接收地址 (Receiver)</th>
+                                            <th class="px-4 py-2">原生代币 (Native)</th>
+                                            <th class="px-4 py-2">指定代币 (Token)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="account-table-body" class="divide-y divide-gray-700/50">
+                                        <!-- Rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row gap-4 items-end">
+                        <div class="flex-grow">
+                            <label class="block text-sm font-medium text-gray-400 mb-1">转账数量设置</label>
+                            
+                            <!-- Mode Selection -->
+                            <div class="flex gap-4 mb-2">
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="amount-mode" value="all" class="form-radio text-primary bg-gray-800 border-gray-600 focus:ring-0" onclick="toggleAmountInputs()">
+                                    <span class="ml-2 text-sm text-gray-300">全部</span>
+                                </label>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="amount-mode" value="percent" class="form-radio text-primary bg-gray-800 border-gray-600 focus:ring-0" onclick="toggleAmountInputs()">
+                                    <span class="ml-2 text-sm text-gray-300">百分比</span>
+                                </label>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="amount-mode" value="random" class="form-radio text-primary bg-gray-800 border-gray-600 focus:ring-0" onclick="toggleAmountInputs()">
+                                    <span class="ml-2 text-sm text-gray-300">随机</span>
+                                </label>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="amount-mode" value="fixed" class="form-radio text-primary bg-gray-800 border-gray-600 focus:ring-0" checked onclick="toggleAmountInputs()">
+                                    <span class="ml-2 text-sm text-gray-300">固定</span>
+                                </label>
+                            </div>
+
+                            <!-- Dynamic Inputs -->
+                            <div id="amount-input-container">
+                                <!-- Fixed -->
+                                <input type="number" id="amount-fixed" step="0.000000000000000001" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-primary" placeholder="输入固定金额 (例如 0.1)">
+                                
+                                <!-- Percent -->
+                                <div id="input-percent" class="hidden relative">
+                                    <input type="number" id="amount-percent" min="1" max="100" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-primary" placeholder="输入百分比 (1-100)">
+                                    <span class="absolute right-3 top-2 text-gray-400">%</span>
+                                </div>
+
+                                <!-- Random -->
+                                <div id="input-random" class="hidden flex gap-2 items-center">
+                                    <input type="number" id="amount-min" class="w-1/2 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-primary" placeholder="Min">
+                                    <span class="text-gray-400">-</span>
+                                    <input type="number" id="amount-max" class="w-1/2 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-primary" placeholder="Max">
+                                </div>
+
+                                <!-- All -->
+                                <div id="input-all" class="hidden">
+                                    <input type="text" disabled value="将发送账户全部可用余额" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-500 cursor-not-allowed">
+                                </div>
+                            </div>
+
+                            <!-- Delay & Gas Settings -->
+                            <div class="mt-4 flex flex-col md:flex-row gap-4">
+                                <div class="w-full md:w-1/2">
+                                    <label class="block text-sm font-medium text-gray-400 mb-1">随机延迟 (秒)</label>
+                                    <div class="flex gap-2 items-center">
+                                        <input type="number" id="delay-min" class="w-1/2 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-primary" placeholder="Min (0)" min="0" value="0">
+                                        <span class="text-gray-400">-</span>
+                                        <input type="number" id="delay-max" class="w-1/2 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-primary" placeholder="Max (0)" min="0" value="0">
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">每次转账间隔的随机时间 (0-0 无延迟)</p>
+                                </div>
+                                <div class="w-full md:w-1/2">
+                                    <label class="block text-sm font-medium text-gray-400 mb-1">当前网络 Gas 预估</label>
+                                    <div id="gas-estimate-panel" class="bg-gray-800 border border-gray-600 rounded px-3 py-2 text-gray-300 text-sm flex justify-between items-center h-[42px]">
+                                        <span id="gas-price-display">Checking...</span>
+                                        <button onclick="updateGasEstimate()" class="text-primary hover:text-white" title="Refresh Gas">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">基于标准转账 (21000 Gas) 估算</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <button onclick="checkBalances()" class="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded font-medium transition-colors">
+                                检查余额 & 格式
+                            </button>
+                            <button onclick="confirmExecution()" class="px-6 py-2 bg-primary hover:bg-blue-600 text-white rounded font-medium transition-colors shadow-lg shadow-blue-500/30">
+                                执行转账
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status & Logs -->
+        <div class="bg-cardbg rounded-lg border border-gray-700 shadow-xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-white">执行状态面板</h3>
+                <button onclick="exportLogs()" class="text-sm text-primary hover:text-blue-400 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    导出 CSV
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-gray-400">
+                    <thead class="bg-gray-800 text-gray-200 uppercase font-medium">
+                        <tr>
+                            <th class="px-4 py-3 rounded-l">#</th>
+                            <th class="px-4 py-3">发送方</th>
+                            <th class="px-4 py-3">接收方</th>
+                            <th class="px-4 py-3">金额</th>
+                            <th class="px-4 py-3">状态</th>
+                            <th class="px-4 py-3 rounded-r">详情 (Hash/Error)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="log-table-body" class="divide-y divide-gray-700">
+                        <!-- Rows will be added here -->
+                        <tr>
+                            <td colspan="6" class="px-4 py-8 text-center text-gray-600">暂无数据，请先点击"检查余额"或"执行转账"</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal -->
+    <div id="confirm-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50">
+        <div class="bg-cardbg border border-gray-600 rounded-lg p-6 max-w-md w-full shadow-2xl transform scale-100 transition-transform">
+            <h3 class="text-xl font-bold text-white mb-4">确认执行转账？</h3>
+            <div class="space-y-3 text-gray-300 text-sm">
+                <p>您即将执行以下操作：</p>
+                <ul class="list-disc list-inside pl-2 space-y-1 text-gray-400">
+                    <li>模式: <span id="modal-mode" class="text-white"></span></li>
+                    <li>总交易数: <span id="modal-count" class="text-white"></span></li>
+                    <li>单笔金额: <span id="modal-amount" class="text-white"></span></li>
+                    <li>代币类型: <span id="modal-token" class="text-white"></span></li>
+                </ul>
+                <p class="text-red-400 mt-4 border-t border-gray-700 pt-2 font-bold">
+                    ⚠️ 操作不可逆！请确保私钥安全且地址正确。
+                </p>
+            </div>
+            <div class="mt-6 flex gap-3 justify-end">
+                <button onclick="closeModal()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors">取消</button>
+                <button onclick="executeTransfer()" class="px-4 py-2 bg-danger hover:bg-red-600 rounded text-white font-bold transition-colors shadow-lg shadow-red-500/30">确认并发送</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Details Modal (Removed) -->
+    
+    <script>
+        // Global State
+        let currentTab = 'mn';
+        let tasks = []; // { sender, receiver, amount, status, details, key }
+        let isProcessing = false;
+        let rpcInterval = null;
+
+        // Network Configuration
+        const NETWORKS = {
+            eth: { rpc: 'https://geth.mytokenpocket.vip', chainId: 1 },
+            arb: { rpc: 'https://arb.mytokenpocket.vip', chainId: 42161 },
+            base: { rpc: 'https://mainnet.base.org', chainId: 8453 },
+            bsc: { rpc: 'https://bsc.mytokenpocket.vip', chainId: 56 },
+            op: { rpc: 'https://mainnet.optimism.io', chainId: 10 },
+            pol: { rpc: 'https://polygon-rpc.com', chainId: 137 },
+            custom: { rpc: '', chainId: null }
+        };
+
+        // ERC20 ABI (Minimal)
+        const ERC20_ABI = [
+            "function transfer(address to, uint amount) returns (bool)",
+            "function decimals() view returns (uint8)",
+            "function symbol() view returns (string)",
+            "function balanceOf(address owner) view returns (uint256)"
+        ];
+
+        // --- Init ---
+        window.addEventListener('DOMContentLoaded', () => {
+            startRpcMonitor();
+            toggleAmountInputs();
+            updateGasEstimate();
+        });
+
+        // --- UI Functions ---
+
+        function restartRpcMonitor() {
+            startRpcMonitor();
+        }
+
+        function startRpcMonitor() {
+            if (rpcInterval) clearInterval(rpcInterval);
+            checkRpcStatus(); // Immediate check
+            rpcInterval = setInterval(checkRpcStatus, 3000);
+        }
+
+        async function checkRpcStatus() {
+            const rpcUrl = document.getElementById('rpcUrl').value.trim();
+            const statusEl = document.getElementById('rpcStatus');
+            const latencyEl = document.getElementById('rpcLatency');
+            const heightEl = document.getElementById('rpcHeight');
+            const dot = statusEl.querySelector('span');
+            const text = statusEl.querySelector('span:last-child');
+
+            if (!rpcUrl) {
+                dot.className = "w-2 h-2 rounded-full bg-gray-500";
+                text.innerText = "未配置";
+                text.className = "text-gray-500";
+                latencyEl.classList.add('hidden');
+                heightEl.classList.add('hidden');
+                return;
+            }
+
+            const start = Date.now();
+            try {
+                // Use a short timeout to fail fast
+                const provider = new ethers.JsonRpcProvider(rpcUrl);
+                // Simple call to get block number
+                const blockNumber = await Promise.race([
+                    provider.getBlockNumber(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+                ]);
+                const latency = Date.now() - start;
+
+                // Update UI Success
+                dot.className = "w-2 h-2 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]";
+                text.innerText = "已连接";
+                text.className = "text-green-500";
+                
+                latencyEl.innerText = `${latency}ms`;
+                latencyEl.className = "hidden font-mono " + (latency < 200 ? "text-green-400" : (latency < 500 ? "text-yellow-400" : "text-red-400"));
+                latencyEl.classList.remove('hidden');
+
+                heightEl.innerText = `#${blockNumber}`;
+                heightEl.classList.remove('hidden');
+            } catch (e) {
+                // Update UI Error
+                dot.className = "w-2 h-2 rounded-full bg-red-500";
+                text.innerText = "连接异常";
+                text.className = "text-red-500";
+                latencyEl.classList.add('hidden');
+                heightEl.classList.add('hidden');
+            }
+        }
+
+        function onNetworkChange() {
+            const select = document.getElementById('networkSelect');
+            const rpcInput = document.getElementById('rpcUrl');
+            const link = document.querySelector('a[href^="https://mct.xyz/nodespeed"]');
+            
+            const selected = NETWORKS[select.value];
+            if (selected && select.value !== 'custom') {
+                rpcInput.value = selected.rpc;
+                // Update the link to point to the correct chain speed test
+                if (link) link.href = `https://mct.xyz/nodespeed?chainId=${selected.chainId}`;
+            } else {
+                rpcInput.value = '';
+                rpcInput.focus();
+            }
+            restartRpcMonitor();
+        }
+
+        async function verifyKeys(inputId) {
+            const rawVal = document.getElementById(inputId).value.trim();
+            if (!rawVal) {
+                alert("请输入私钥");
+                return;
+            }
+
+            // 增强私钥处理：去除首尾空格、去除行内空白、过滤空行
+            const keys = rawVal.split('\n')
+                .map(k => k.trim())
+                .filter(k => k)
+                .map(k => k.replace(/\s+/g, ''));
+
+            if (keys.length === 0) return;
+
+            // Handle M:N receiver mapping if in MN mode
+            let receivers = [];
+            if (currentTab === 'mn') {
+                const receiverVal = document.getElementById('mn-addrs').value.trim();
+                receivers = receiverVal.split('\n').map(r => r.trim()).filter(r => r);
+            }
+
+            const rpcUrl = document.getElementById('rpcUrl').value.trim();
+            if (!rpcUrl) {
+                alert("请先配置 RPC 节点");
+                return;
+            }
+
+            // Init UI
+            showAccountOverview();
+            const tbody = document.getElementById('account-table-body');
+            tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-primary animate-pulse">正在获取余额 (0/${keys.length})...</td></tr>`;
+
+            // Provider
+            let provider;
+            try {
+                provider = new ethers.JsonRpcProvider(rpcUrl);
+                // Pre-flight check: Try to get network to confirm RPC is alive
+                await provider.getNetwork();
+            } catch (e) {
+                alert(`RPC 连接测试失败！\n原因: ${e.message || "未知错误"}\n\n请检查网络连接或尝试更换 RPC 节点。`);
+                clearAccountOverview();
+                return;
+            }
+
+            // Token
+            const tokenAddr = document.getElementById('tokenAddress').value.trim();
+            let tokenContract = null;
+            let tokenSymbol = '';
+            let tokenDecimals = 18;
+
+            if (tokenAddr) {
+                try {
+                    tokenContract = new ethers.Contract(tokenAddr, ERC20_ABI, provider);
+                    // Try to fetch symbol/decimals (optional)
+                    try {
+                        tokenSymbol = await tokenContract.symbol();
+                        tokenDecimals = await tokenContract.decimals();
+                    } catch (e) {
+                        tokenSymbol = 'TOKEN';
+                    }
+                } catch (e) {
+                    console.error("Token contract error", e);
+                }
+            }
+
+            // Process Batch
+            tbody.innerHTML = '';
+            const BATCH_SIZE = 5;
+            
+            for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+                const batchKeys = keys.slice(i, i + BATCH_SIZE);
+                
+                // Show progress placeholder
+                const loadingRow = document.createElement('tr');
+                loadingRow.id = `loading-row-${i}`;
+                loadingRow.innerHTML = `<td colspan="5" class="px-4 py-2 text-center text-gray-500 text-xs">正在查询 ${i+1}-${Math.min(i+BATCH_SIZE, keys.length)}...</td>`;
+                tbody.appendChild(loadingRow);
+
+                await Promise.all(batchKeys.map(async (key, idx) => {
+                    const globalIdx = i + idx;
+                    let wallet;
+                    let address = 'Invalid Key';
+                    let nativeBal = '-';
+                    let tokenBal = '-';
+                    let receiver = '';
+
+                    try {
+                        let privateKey = key;
+                        // 自动补全 0x 前缀，Ethers.js 需要
+                        if (!privateKey.startsWith('0x')) {
+                            privateKey = '0x' + privateKey;
+                        }
+                        
+                        // 1. Create Wallet (Fails if key is invalid)
+                        try {
+                            wallet = new ethers.Wallet(privateKey, provider);
+                            address = wallet.address;
+                        } catch (err) {
+                            throw new Error('INVALID_KEY');
+                        }
+                        
+                        // 2. Fetch Balance (Fails if RPC is dead/timeout)
+                        try {
+                            // Native Balance
+                            const bal = await provider.getBalance(address);
+                            nativeBal = parseFloat(ethers.formatEther(bal)).toFixed(6);
+
+                            // Token Balance
+                            if (tokenContract) {
+                                const tBal = await tokenContract.balanceOf(address);
+                                tokenBal = parseFloat(ethers.formatUnits(tBal, tokenDecimals)).toFixed(6);
+                                if (tokenSymbol) tokenBal += ` ${tokenSymbol}`;
+                            }
+                        } catch (err) {
+                            throw new Error('RPC_ERROR: ' + (err.reason || err.message));
+                        }
+
+                        // Receiver Mapping
+                        if (currentTab === 'mn') {
+                            receiver = receivers[globalIdx] || '<span class="text-red-500">未配置</span>';
+                        } else if (currentTab === 'm1') {
+                            receiver = document.getElementById('m1-addr').value.trim() || '<span class="text-gray-500">M:1 模式</span>';
+                        } else if (currentTab === '1n') {
+                             receiver = '<span class="text-gray-500">1:N 接收者列表</span>';
+                        }
+
+                    } catch (e) {
+                        if (e.message === 'INVALID_KEY') {
+                            address = '<span class="text-red-500">无效私钥</span>';
+                        } else if (e.message.startsWith('RPC_ERROR')) {
+                            address = wallet ? wallet.address : 'Error';
+                            nativeBal = '<span class="text-red-400" title="' + e.message + '">查询失败</span>';
+                            tokenBal = '<span class="text-red-400">Network Error</span>';
+                        } else {
+                            address = '<span class="text-red-500">未知错误</span>';
+                        }
+                    }
+
+                    // Add Row
+                    const row = document.createElement('tr');
+                    row.className = "hover:bg-gray-700/30 transition-colors";
+                    row.innerHTML = `
+                        <td class="px-4 py-2 text-gray-500">${globalIdx + 1}</td>
+                        <td class="px-4 py-2 font-mono text-blue-300">${address}</td>
+                        <td class="px-4 py-2 font-mono text-gray-400">${receiver}</td>
+                        <td class="px-4 py-2 font-mono text-green-400">${nativeBal}</td>
+                        <td class="px-4 py-2 font-mono text-yellow-400">${tokenBal}</td>
+                    `;
+                    // Insert before loading row
+                    tbody.insertBefore(row, loadingRow);
+                }));
+
+                // Remove loading row
+                loadingRow.remove();
+            }
+        }
+
+        async function verifyMnMapping() {
+            // This is a helper for the "Verify Receivers" button in M:N mode.
+            // It triggers the main verification logic, assuming keys are already there or user just wants to see the mapping.
+            // But verifyKeys relies on Keys input.
+            // So we just call verifyKeys('mn-keys') which will pick up both keys and receivers.
+            verifyKeys('mn-keys');
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Clear inputs and state when switching
+            clearAccountOverview();
+            
+            // Clear Inputs in all panels to avoid confusion
+            ['mn-keys', 'mn-addrs', 'm1-keys', 'm1-addr', '1n-key', '1n-addrs'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+
+            // Clear Amount Inputs
+            ['amount-fixed', 'amount-percent', 'amount-min', 'amount-max', 'delay-min', 'delay-max'].forEach(id => {
+                 const el = document.getElementById(id);
+                 if (el) el.value = '';
+            });
+
+            // Reset Amount Mode to Fixed
+            const fixedRadio = document.querySelector('input[name="amount-mode"][value="fixed"]');
+            if (fixedRadio) {
+                fixedRadio.checked = true;
+                // Ensure toggleAmountInputs is available (hoisted)
+                if (typeof toggleAmountInputs === 'function') {
+                    toggleAmountInputs();
+                }
+            }
+            
+            // Update Buttons
+            ['mn', 'm1', '1n'].forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                const panel = document.getElementById(`panel-${t}`);
+                if (t === tab) {
+                    btn.classList.add('border-primary', 'text-primary');
+                    btn.classList.remove('border-transparent', 'text-gray-400');
+                    panel.classList.remove('hidden');
+                } else {
+                    btn.classList.remove('border-primary', 'text-primary');
+                    btn.classList.add('border-transparent', 'text-gray-400');
+                    panel.classList.add('hidden');
+                }
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+            document.getElementById('confirm-modal').classList.remove('flex');
+        }
+
+        function openModal() {
+            document.getElementById('confirm-modal').classList.remove('hidden');
+            document.getElementById('confirm-modal').classList.add('flex');
+        }
+
+        function showAccountOverview() {
+            document.getElementById('account-overview-panel').classList.remove('hidden');
+        }
+
+        function clearAccountOverview() {
+            document.getElementById('account-table-body').innerHTML = '';
+            document.getElementById('account-overview-panel').classList.add('hidden');
+        }
+
+        function updateLogTable() {
+            const tbody = document.getElementById('log-table-body');
+            tbody.innerHTML = '';
+
+            if (tasks.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-gray-600">暂无数据</td></tr>`;
+                return;
+            }
+
+            tasks.forEach((task, index) => {
+                let statusClass = 'text-gray-400';
+                if (task.status === 'Pending') statusClass = 'text-yellow-400';
+                if (task.status === 'Success') statusClass = 'text-green-400';
+                if (task.status === 'Failed') statusClass = 'text-red-400';
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-800/50 transition-colors';
+                tr.innerHTML = `
+                    <td class="px-4 py-2 font-mono text-xs text-gray-500">${index + 1}</td>
+                    <td class="px-4 py-2 font-mono text-xs text-gray-300" title="${task.sender}">${task.sender.substring(0, 6)}...${task.sender.substring(38)}</td>
+                    <td class="px-4 py-2 font-mono text-xs text-gray-300" title="${task.receiver}">${task.receiver.substring(0, 6)}...${task.receiver.substring(38)}</td>
+                    <td class="px-4 py-2 font-mono text-xs">${task.amount}</td>
+                    <td class="px-4 py-2 font-bold text-xs ${statusClass}">${task.status}</td>
+                    <td class="px-4 py-2 font-mono text-xs text-gray-400 truncate max-w-[150px]" title="${task.details}">
+                        ${task.hash ? `<a href="#" class="text-primary hover:underline" onclick="alert('Hash: ${task.hash}')">View Hash</a>` : task.details}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- Core Logic ---
+
+        async function updateGasEstimate() {
+            const display = document.getElementById('gas-price-display');
+            if (!display) return;
+            display.innerText = "Updating...";
+            
+            try {
+                const rpcUrl = document.getElementById('rpcUrl').value.trim();
+                if (!rpcUrl) {
+                    display.innerText = "No RPC URL";
+                    return;
+                }
+                
+                const provider = new ethers.JsonRpcProvider(rpcUrl);
+                // Pre-check network
+                try { await provider.getNetwork(); } catch(e) { throw new Error("RPC Error"); }
+
+                const feeData = await provider.getFeeData();
+                const gasPrice = feeData.gasPrice || feeData.maxFeePerGas;
+                
+                if (!gasPrice) {
+                    display.innerText = "Unknown Gas Price";
+                    return;
+                }
+
+                const gasLimit = 21000n;
+                const costWei = gasLimit * gasPrice;
+                const costEth = ethers.formatEther(costWei);
+                const gasGwei = ethers.formatUnits(gasPrice, 'gwei');
+
+                display.innerHTML = `<span class="text-yellow-400">${parseFloat(gasGwei).toFixed(2)} Gwei</span> | <span class="text-green-400">~${parseFloat(costEth).toFixed(6)} ETH</span>`;
+                
+            } catch (e) {
+                console.error(e);
+                display.innerText = "Gas Check Failed";
+            }
+        }
+
+        function toggleAmountInputs() {
+            const modes = document.getElementsByName('amount-mode');
+            let selected;
+            for(let m of modes) { if(m.checked) selected = m.value; }
+
+            document.getElementById('amount-fixed').classList.add('hidden');
+            document.getElementById('input-percent').classList.add('hidden');
+            document.getElementById('input-random').classList.add('hidden');
+            document.getElementById('input-all').classList.add('hidden');
+
+            if(selected === 'fixed') document.getElementById('amount-fixed').classList.remove('hidden');
+            if(selected === 'percent') document.getElementById('input-percent').classList.remove('hidden');
+            if(selected === 'random') document.getElementById('input-random').classList.remove('hidden');
+            if(selected === 'all') document.getElementById('input-all').classList.remove('hidden');
+        }
+
+        function parseInput() {
+            // Determine Mode
+            const modes = document.getElementsByName('amount-mode');
+            let mode = 'fixed';
+            for(let m of modes) { if(m.checked) mode = m.value; }
+
+            let amountData = { mode: mode };
+            let displayAmount = '';
+
+            // Validate and Get Data based on Mode
+            if (mode === 'fixed') {
+                const val = document.getElementById('amount-fixed').value.trim();
+                if (!val || isNaN(val) || parseFloat(val) <= 0) { alert("请输入有效的金额"); return null; }
+                amountData.value = val;
+                displayAmount = val;
+            } else if (mode === 'percent') {
+                const val = document.getElementById('amount-percent').value.trim();
+                if (!val || isNaN(val) || parseFloat(val) <= 0 || parseFloat(val) > 100) { alert("请输入有效的百分比 (1-100)"); return null; }
+                amountData.value = val;
+                displayAmount = val + '%';
+            } else if (mode === 'random') {
+                const min = document.getElementById('amount-min').value.trim();
+                const max = document.getElementById('amount-max').value.trim();
+                if (!min || !max || isNaN(min) || isNaN(max) || parseFloat(min) >= parseFloat(max)) { alert("请输入有效的随机范围 (Min < Max)"); return null; }
+                amountData.min = min;
+                amountData.max = max;
+                displayAmount = 'Random'; // Placeholder, will be replaced per task
+            } else if (mode === 'all') {
+                displayAmount = 'MAX';
+            }
+
+            let rawTasks = [];
+
+            // Helper to clean key
+            const cleanKey = (k) => {
+                let s = k.replace(/\s+/g, '');
+                return s.startsWith('0x') ? s : '0x' + s;
+            };
+
+            try {
+                let keys = [], receivers = [];
+
+                if (currentTab === 'mn') {
+                    keys = document.getElementById('mn-keys').value.trim().split('\n').map(k => k.trim()).filter(k => k).map(cleanKey);
+                    receivers = document.getElementById('mn-addrs').value.trim().split('\n').map(a => a.trim()).filter(a => a);
+                    if (keys.length !== receivers.length) throw new Error(`私钥数量 (${keys.length}) 与地址数量 (${receivers.length}) 不匹配`);
+                    if (keys.length === 0) throw new Error("输入不能为空");
+                } else if (currentTab === 'm1') {
+                    keys = document.getElementById('m1-keys').value.trim().split('\n').map(k => k.trim()).filter(k => k).map(cleanKey);
+                    const addr = document.getElementById('m1-addr').value.trim();
+                    if (keys.length === 0) throw new Error("请输入私钥");
+                    if (!ethers.isAddress(addr)) throw new Error("接收地址格式无效");
+                    receivers = Array(keys.length).fill(addr);
+                } else if (currentTab === '1n') {
+                    let key = document.getElementById('1n-key').value.trim();
+                    if (key) key = cleanKey(key);
+                    const addrs = document.getElementById('1n-addrs').value.trim().split('\n').map(a => a.trim()).filter(a => a);
+                    if (!key) throw new Error("请输入发送方私钥");
+                    if (addrs.length === 0) throw new Error("请输入接收地址");
+                    keys = Array(addrs.length).fill(key);
+                    receivers = addrs;
+                }
+
+                // Generate Tasks
+                for (let i = 0; i < keys.length; i++) {
+                    let taskAmount = displayAmount;
+                    let taskAmountData = { ...amountData };
+
+                    if (mode === 'random') {
+                        const min = parseFloat(amountData.min);
+                        const max = parseFloat(amountData.max);
+                        const rand = Math.random() * (max - min) + min;
+                        // Use 6 decimals for display simplicity, but maybe more for precision?
+                        // Let's use 8 decimals to be safe for small amounts
+                        const val = rand.toFixed(8).replace(/\.?0+$/, ""); 
+                        taskAmount = val;
+                        // For random, we freeze the value here so it's treated as fixed for this specific task generation
+                        // Note: If 'prepareTasks' is called again, this will be regenerated.
+                        taskAmountData = { mode: 'fixed', value: val }; 
+                    }
+
+                    rawTasks.push({ key: keys[i], receiver: receivers[i], amount: taskAmount, amountData: taskAmountData });
+                }
+
+            } catch (e) {
+                alert(e.message);
+                return null;
+            }
+
+            return rawTasks;
+        }
+
+        async function prepareTasks(validateBalances = false) {
+            const rawTasks = parseInput();
+            if (!rawTasks) return false;
+
+            const rpcUrl = document.getElementById('rpcUrl').value.trim();
+            if (!rpcUrl) {
+                alert("请输入 RPC 节点地址");
+                return false;
+            }
+
+            const tokenAddress = document.getElementById('tokenAddress').value.trim();
+            const isToken = ethers.isAddress(tokenAddress);
+
+            // Init Provider
+            let provider;
+            let currentGasPrice = 1000000000n; // Default 1 gwei
+            try {
+                provider = new ethers.JsonRpcProvider(rpcUrl);
+                await provider.getNetwork(); // Test connection
+                const feeData = await provider.getFeeData();
+                currentGasPrice = feeData.maxFeePerGas || feeData.gasPrice || 1000000000n;
+            } catch (e) {
+                alert("无法连接到 RPC 节点，请检查地址或网络");
+                console.error(e);
+                return false;
+            }
+
+            tasks = [];
+            
+            // UI Feedback
+            const tbody = document.getElementById('log-table-body');
+            tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-primary animate-pulse">正在初始化并验证账户...</td></tr>`;
+
+            // Process Batch
+            for (let raw of rawTasks) {
+                let task = {
+                    key: raw.key,
+                    sender: 'Computing...',
+                    receiver: raw.receiver,
+                    amount: raw.amount,
+                    amountData: raw.amountData,
+                    status: 'Pending',
+                    details: 'Waiting...',
+                    hash: ''
+                };
+
+                try {
+                    // Validate Key
+                    const wallet = new ethers.Wallet(raw.key, provider);
+                    task.sender = wallet.address;
+
+                    // Validate Receiver
+                    if (!ethers.isAddress(raw.receiver)) {
+                        task.status = 'Failed';
+                        task.details = 'Invalid Receiver Address';
+                    }
+
+                    // Balance Check (Optional but requested)
+                    if (validateBalances && task.status !== 'Failed') {
+                        // This can be slow for many accounts, maybe optimize later
+                        if (isToken) {
+                            const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+                            const decimals = await contract.decimals(); // Cache this in real app
+                            const balance = await contract.balanceOf(wallet.address);
+                            
+                            // Determine Amount to Check
+                            let amountWei = 0n;
+                            if (task.amountData.mode === 'all') {
+                                amountWei = balance;
+                                task.amount = "MAX (" + ethers.formatUnits(balance, decimals) + ")";
+                            } else if (task.amountData.mode === 'percent') {
+                                amountWei = balance * BigInt(Math.floor(parseFloat(task.amountData.value))) / 100n;
+                                task.amount = task.amountData.value + "% (" + ethers.formatUnits(amountWei, decimals) + ")";
+                            } else {
+                                amountWei = ethers.parseUnits(task.amountData.value, decimals);
+                            }
+
+                            if (balance < amountWei || (amountWei === 0n && task.amountData.mode !== 'all')) { // Allow 0 for all if balance is 0
+                                task.status = 'Failed';
+                                task.details = 'Insufficient Token Balance';
+                            } else {
+                                // Also check ETH for gas? Ignored for simplicity in "balance check" but critical for exec
+                                const ethBal = await provider.getBalance(wallet.address);
+                                if (ethBal === 0n) {
+                                     task.status = 'Failed';
+                                     task.details = 'No ETH for Gas';
+                                } else {
+                                    task.status = 'Ready';
+                                    task.details = 'Balance OK';
+                                }
+                            }
+                        } else {
+                            const balance = await provider.getBalance(wallet.address);
+                            
+                            let amountWei = 0n;
+                            // Estimate gas cost (Standard 21000 + 10% buffer for safety in display)
+                            const gasLimit = 21000n;
+                            const gasCost = gasLimit * currentGasPrice * 110n / 100n;
+
+                            if (task.amountData.mode === 'all') {
+                                amountWei = balance > gasCost ? balance - gasCost : 0n;
+                                task.amount = "MAX (~" + ethers.formatEther(amountWei) + ")";
+                            } else if (task.amountData.mode === 'percent') {
+                                const available = balance > gasCost ? balance - gasCost : 0n;
+                                amountWei = available * BigInt(Math.floor(parseFloat(task.amountData.value))) / 100n;
+                                task.amount = task.amountData.value + "% (~" + ethers.formatEther(amountWei) + ")";
+                            } else {
+                                amountWei = ethers.parseEther(task.amountData.value);
+                            }
+
+                            if (balance < amountWei + gasCost) {
+                                task.status = 'Failed';
+                                task.details = 'Insufficient ETH Balance (incl. Gas)';
+                            } else {
+                                task.status = 'Ready';
+                                task.details = 'Balance OK';
+                            }
+                        }
+                    } else if (task.status !== 'Failed') {
+                        task.status = 'Ready';
+                        task.details = 'Queued';
+                    }
+
+                } catch (e) {
+                    task.status = 'Failed';
+                    task.details = 'Invalid Private Key';
+                    task.sender = 'Invalid Key';
+                }
+
+                tasks.push(task);
+            }
+
+            updateLogTable();
+            return true;
+        }
+
+        async function checkBalances() {
+            if (isProcessing) return;
+            isProcessing = true;
+            await prepareTasks(true);
+            isProcessing = false;
+        }
+
+        async function confirmExecution() {
+            const ready = await prepareTasks(false); // Prepare without heavy balance checks first, or assume valid
+            if (!ready) return;
+
+            // Count valid tasks
+            const validCount = tasks.filter(t => t.status === 'Ready').length;
+            if (validCount === 0) {
+                alert("没有有效的待处理任务");
+                return;
+            }
+
+            const tokenAddr = document.getElementById('tokenAddress').value.trim();
+            const tokenName = tokenAddr ? "Token/ERC20" : "Native Coin (ETH)";
+            
+            document.getElementById('modal-mode').innerText = currentTab.toUpperCase();
+            document.getElementById('modal-count').innerText = validCount;
+            document.getElementById('modal-amount').innerText = tasks[0].amount;
+            document.getElementById('modal-token').innerText = tokenName;
+
+            openModal();
+        }
+
+        async function executeTransfer() {
+            closeModal();
+            if (isProcessing) return;
+            isProcessing = true;
+
+            const rpcUrl = document.getElementById('rpcUrl').value.trim();
+            const provider = new ethers.JsonRpcProvider(rpcUrl);
+            const tokenAddress = document.getElementById('tokenAddress').value.trim();
+            const isToken = ethers.isAddress(tokenAddress);
+
+            // Cache token info if needed
+            let tokenContract = null;
+            let decimals = 18;
+            if (isToken) {
+                // We use a read-only provider for reading info, but we need connected wallets for writing
+                const tempContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+                try {
+                    decimals = await tempContract.decimals();
+                } catch(e) {
+                    console.log("Failed to fetch decimals, assuming 18");
+                }
+            }
+
+            // Process Sequentially to avoid nonces issues if same wallet used multiple times (1:N mode)
+            // For 1:N, we must manage nonce manually or await each tx. Awaiting is safer.
+            
+            let processedCount = 0;
+            for (let i = 0; i < tasks.length; i++) {
+                const task = tasks[i];
+                if (task.status !== 'Ready') continue;
+
+                // Random Delay
+                if (processedCount > 0) {
+                    const delayMin = parseFloat(document.getElementById('delay-min').value) || 0;
+                    const delayMax = parseFloat(document.getElementById('delay-max').value) || 0;
+                    
+                    if (delayMax > 0 && delayMax >= delayMin) {
+                        const delaySec = Math.random() * (delayMax - delayMin) + delayMin;
+                        if (delaySec > 0) {
+                             task.details = `Waiting ${delaySec.toFixed(1)}s...`;
+                             updateLogTable();
+                             await new Promise(r => setTimeout(r, delaySec * 1000));
+                        }
+                    }
+                }
+                processedCount++;
+
+                task.status = 'Sending';
+                task.details = 'Signing...';
+                updateLogTable();
+
+                try {
+                    const wallet = new ethers.Wallet(task.key, provider);
+                    let tx;
+
+                    if (isToken) {
+                        const contract = new ethers.Contract(tokenAddress, ERC20_ABI, wallet);
+                        
+                        let amountWei = 0n;
+                        if (task.amountData.mode === 'all') {
+                            amountWei = await contract.balanceOf(wallet.address);
+                            // Update display amount
+                            task.amount = ethers.formatUnits(amountWei, decimals);
+                        } else if (task.amountData.mode === 'percent') {
+                            const balance = await contract.balanceOf(wallet.address);
+                            amountWei = balance * BigInt(Math.floor(parseFloat(task.amountData.value))) / 100n;
+                            task.amount = ethers.formatUnits(amountWei, decimals);
+                        } else {
+                            amountWei = ethers.parseUnits(task.amountData.value, decimals);
+                        }
+
+                        if (amountWei <= 0n) throw new Error("Amount is 0");
+
+                        // Estimate gas? Ethers does it automatically.
+                        tx = await contract.transfer(task.receiver, amountWei);
+                    } else {
+                        let amountWei = 0n;
+                        
+                        if (task.amountData.mode === 'all' || task.amountData.mode === 'percent') {
+                            const balance = await provider.getBalance(wallet.address);
+                            const feeData = await provider.getFeeData();
+                            // Use gasPrice if available, otherwise maxFeePerGas. Fallback to 0 if unknown (unlikely on mainnet)
+                            const gasPrice = feeData.maxFeePerGas || feeData.gasPrice || 1000000000n;
+                            const gasLimit = 21000n; // Standard transfer
+                            
+                            // Calculate Cost with Buffer (5%) to prevent "Insufficient Funds"
+                            const estimatedGasCost = gasLimit * gasPrice;
+                            const safeGasCost = estimatedGasCost * 105n / 100n;
+
+                            if (task.amountData.mode === 'all') {
+                                if (balance <= safeGasCost) throw new Error("Insufficient ETH for Gas");
+                                amountWei = balance - safeGasCost;
+                            } else {
+                                const available = balance > safeGasCost ? balance - safeGasCost : 0n;
+                                amountWei = available * BigInt(Math.floor(parseFloat(task.amountData.value))) / 100n;
+                            }
+                            task.amount = ethers.formatEther(amountWei);
+                        } else {
+                            amountWei = ethers.parseEther(task.amountData.value);
+                        }
+
+                        if (amountWei <= 0n) throw new Error("Amount too low (<= 0) or Insufficient Gas");
+
+                        tx = await wallet.sendTransaction({
+                            to: task.receiver,
+                            value: amountWei
+                        });
+                    }
+
+                    task.details = 'Tx Sent. Waiting Confirmation...';
+                    task.hash = tx.hash;
+                    updateLogTable();
+
+                    await tx.wait(1); // Wait for 1 confirmation
+                    
+                    task.status = 'Success';
+                    task.details = 'Confirmed';
+                } catch (e) {
+                    console.error(e);
+                    task.status = 'Failed';
+                    task.details = e.reason || e.code || e.message;
+                    // Simplify error message
+                    if (task.details.includes('insufficient funds')) task.details = 'Insufficient Funds';
+                }
+
+                updateLogTable();
+            }
+
+            isProcessing = false;
+            alert("批量转账执行完毕！");
+        }
+
+        function exportLogs() {
+            if (tasks.length === 0) {
+                alert("没有数据可导出");
+                return;
+            }
+            
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Index,Sender,Receiver,Amount,Status,Details,Hash\n";
+            
+            tasks.forEach((task, index) => {
+                const row = [
+                    index + 1,
+                    task.sender,
+                    task.receiver,
+                    task.amount,
+                    task.status,
+                    task.details.replace(/,/g, ' '), // escape commas
+                    task.hash || ''
+                ].join(",");
+                csvContent += row + "\r\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "transfer_logs.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+    </script>
+</body>
+</html>
