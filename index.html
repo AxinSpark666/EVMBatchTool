@@ -40,7 +40,8 @@
         }
     </style>
 </head>
-<body class="bg-darkbg text-gray-200 font-sans min-h-screen flex flex-col">
+<body class="bg-darkbg text-gray-200 font-sans min-h-screen flex flex-col" 
+      style="background-image: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)), url('https://pbs.twimg.com/profile_banners/1802533132006301696/1765355404/1500x500'); background-size: cover; background-position: center; background-attachment: fixed;">
 
     <!-- Header -->
     <header class="bg-cardbg border-b border-gray-700 p-4 shadow-lg">
@@ -51,8 +52,17 @@
                 </svg>
                 Web3 Multi-Transfer Pro
             </h1>
-            <div class="text-sm text-gray-400">
-                Secure & Local Execution
+            <div class="flex items-center gap-4">
+                <div class="text-sm text-gray-400 hidden md:block">
+                    Secure & Local Execution
+                </div>
+                <a href="https://x.com/AxinSpark" target="_blank" class="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-full border border-gray-600 transition-colors group">
+                    <img src="https://pbs.twimg.com/profile_images/1950061433796120576/TG_biQfc_400x400.png" alt="AxinSpark" class="w-6 h-6 rounded-full border border-gray-500">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-gray-500 group-hover:text-blue-400 leading-none mb-0.5">Author</span>
+                        <span class="text-xs font-bold text-gray-200 group-hover:text-white leading-none">@AxinSpark</span>
+                    </div>
+                </a>
             </div>
         </div>
     </header>
